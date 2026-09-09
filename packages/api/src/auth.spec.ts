@@ -4,6 +4,55 @@ import { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
 
+/*
+ * No broker.
+ *
+ * This boots the whole application to assert its wiring, and that pulls in
+ * organon's `RabbitMqModule`. Pointed at a broker that is not listening, its
+ * connection never settles — `wait: false` stops it *waiting* for a healthy
+ * connection, not opening one — and `beforeAll` hangs until Jest gives up.
+ * Raising the hook timeout to 30 seconds does not help: it is stuck, not slow.
+ *
+ * Overriding the `AmqpConnection` provider is too late, because the module has
+ * already opened a connection of its own by then. So the transport package is
+ * replaced outright with an inert module.
+ *
+ * Nothing asserted below publishes anything, so this removes a dependency the
+ * test never needed — and one CI would not have.
+ */
+jest.mock('@golevelup/nestjs-rabbitmq', () => {
+  const actual = jest.requireActual<
+    typeof import('@golevelup/nestjs-rabbitmq')
+  >('@golevelup/nestjs-rabbitmq');
+
+  /*
+   * A class, not a plain object carrying a `forRootAsync`: organon's
+   * `RabbitMqModule` re-exports this module itself, and Nest refuses to export
+   * something that is not a module.
+   */
+  class RabbitMQModule {
+    static forRootAsync() {
+      return {
+        module: RabbitMQModule,
+        global: true,
+        providers: [
+          {
+            provide: actual.AmqpConnection,
+            useValue: { publish: jest.fn().mockResolvedValue(undefined) },
+          },
+        ],
+        exports: [actual.AmqpConnection],
+      };
+    }
+  }
+
+  // Everything else stays real — `RabbitSubscribe` is a decorator the object
+  // listener applies at class-definition time, and `AmqpConnection` is the DI
+  // token organon's publisher asks for. Only the module that dials out is
+  // replaced.
+  return { ...actual, RabbitMQModule };
+});
+
 /**
  * The whole application, booted the way it runs — so that what is asserted is
  * the wiring itself: `PistisAuthModule` registers its guard globally, and
