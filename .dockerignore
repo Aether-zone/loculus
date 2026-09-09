@@ -1,0 +1,32 @@
+# Never copy host build output or dependencies into the build context: the
+# native modules in node_modules are compiled for the host, not the image.
+node_modules
+**/node_modules
+dist
+**/dist
+.next
+**/.next
+out
+**/out
+.nx
+coverage
+test-output
+**/test-output
+
+.git
+.github
+.vscode
+.claude
+
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+.env
+.env.local
+.env.*.local
+**/.env
+**/.env.local
+
+Dockerfile*
+.dockerignore
+**/*.md

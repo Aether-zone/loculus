@@ -1,0 +1,17 @@
+packages:
+  - 'packages/*'
+  # The console. Top level rather than under `packages/`, matching akouo and
+  # pistis: it is an application, not a library the api could depend on.
+  - 'web'
+
+# pnpm 10 runs no dependency lifecycle scripts unless they are named here.
+onlyBuiltDependencies:
+  - '@swc/core'
+  # better-sqlite3 ships prebuilt bindings for common platforms, so it usually
+  # loads with its install script skipped — and then pnpm warns about the
+  # skipped script on every install, which is noise to chase. Naming it here
+  # silences that, and is what lets it build on a platform with no prebuild.
+  - better-sqlite3
+  - esbuild
+  - unrs-resolver
+
