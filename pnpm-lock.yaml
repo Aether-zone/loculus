@@ -151,8 +151,8 @@ importers:
   packages/api:
     dependencies:
       '@aether-zone/organon':
-        specifier: file:../../../organon/libs/organon
-        version: file:../organon/libs/organon(@golevelup/nestjs-rabbitmq@9.0.2)(@nestjs/common@11.0.1)(@nestjs/config@4.0.4)(@nestjs/core@11.0.1)(@nestjs/passport@11.0.5)(passport-jwt@4.0.1)(passport@0.7.0)(reflect-metadata@0.2.2)(rxjs@7.8.1)(zod@4.5.4)
+        specifier: ^0.5.0
+        version: 0.5.0(@golevelup/nestjs-rabbitmq@9.0.2)(@nestjs/common@11.0.1)(@nestjs/config@4.0.4)(@nestjs/core@11.0.1)(@nestjs/passport@11.0.5)(passport-jwt@4.0.1)(passport@0.7.0)(reflect-metadata@0.2.2)(rxjs@7.8.1)(zod@4.5.4)
       '@aws-sdk/client-s3':
         specifier: ^3.1126.0
         version: 3.1126.0
@@ -332,6 +332,32 @@ packages:
       react: 19.2.8
       react-dom: 19.2.8(react@19.2.8)
       react-icons: 5.7.0(react@19.2.8)
+    dev: false
+
+  /@aether-zone/organon@0.5.0(@golevelup/nestjs-rabbitmq@9.0.2)(@nestjs/common@11.0.1)(@nestjs/config@4.0.4)(@nestjs/core@11.0.1)(@nestjs/passport@11.0.5)(passport-jwt@4.0.1)(passport@0.7.0)(reflect-metadata@0.2.2)(rxjs@7.8.1)(zod@4.5.4):
+    resolution: {integrity: sha512-cxcyYADaE8WVjC+hMZRHhcQ+JCZMopHo0p+SPz8xwwk9YkV8GjvH9MYFVl/OEcxt0Uru7MZTDZqF//PeKSILww==}
+    peerDependencies:
+      '@golevelup/nestjs-rabbitmq': ^9.0.0
+      '@nestjs/common': ^11.0.1
+      '@nestjs/config': ^4.0.0
+      '@nestjs/core': ^11.0.1
+      '@nestjs/passport': ^11.0.0
+      passport: ^0.7.0
+      passport-jwt: ^4.0.1
+      reflect-metadata: ^0.2.2
+      rxjs: ^7.8.1
+      zod: ^4.0.0
+    dependencies:
+      '@golevelup/nestjs-rabbitmq': 9.0.2(@nestjs/common@11.0.1)(@nestjs/core@11.0.1)(reflect-metadata@0.2.2)(rxjs@7.8.1)
+      '@nestjs/common': 11.0.1(reflect-metadata@0.2.2)(rxjs@7.8.1)
+      '@nestjs/config': 4.0.4(@nestjs/common@11.0.1)(rxjs@7.8.1)
+      '@nestjs/core': 11.0.1(@nestjs/common@11.0.1)(@nestjs/platform-express@11.0.1)(reflect-metadata@0.2.2)(rxjs@7.8.1)
+      '@nestjs/passport': 11.0.5(@nestjs/common@11.0.1)(passport@0.7.0)
+      passport: 0.7.0
+      passport-jwt: 4.0.1
+      reflect-metadata: 0.2.2
+      rxjs: 7.8.1
+      zod: 4.5.4
     dev: false
 
   /@alloc/quick-lru@5.3.0:
@@ -12565,33 +12591,4 @@ packages:
       next: 16.3.1(@babel/core@7.29.7)(@playwright/test@1.62.1)(@types/node@24.0.0)(react-dom@19.2.8)(react@19.2.8)
       oauth4webapi: 3.8.7
       react: 19.2.8
-    dev: false
-
-  file:../organon/libs/organon(@golevelup/nestjs-rabbitmq@9.0.2)(@nestjs/common@11.0.1)(@nestjs/config@4.0.4)(@nestjs/core@11.0.1)(@nestjs/passport@11.0.5)(passport-jwt@4.0.1)(passport@0.7.0)(reflect-metadata@0.2.2)(rxjs@7.8.1)(zod@4.5.4):
-    resolution: {directory: ../organon/libs/organon, type: directory}
-    id: file:../organon/libs/organon
-    name: '@aether-zone/organon'
-    version: 0.5.0
-    peerDependencies:
-      '@golevelup/nestjs-rabbitmq': ^9.0.0
-      '@nestjs/common': ^11.0.1
-      '@nestjs/config': ^4.0.0
-      '@nestjs/core': ^11.0.1
-      '@nestjs/passport': ^11.0.0
-      passport: ^0.7.0
-      passport-jwt: ^4.0.1
-      reflect-metadata: ^0.2.2
-      rxjs: ^7.8.1
-      zod: ^4.0.0
-    dependencies:
-      '@golevelup/nestjs-rabbitmq': 9.0.2(@nestjs/common@11.0.1)(@nestjs/core@11.0.1)(reflect-metadata@0.2.2)(rxjs@7.8.1)
-      '@nestjs/common': 11.0.1(reflect-metadata@0.2.2)(rxjs@7.8.1)
-      '@nestjs/config': 4.0.4(@nestjs/common@11.0.1)(rxjs@7.8.1)
-      '@nestjs/core': 11.0.1(@nestjs/common@11.0.1)(@nestjs/platform-express@11.0.1)(reflect-metadata@0.2.2)(rxjs@7.8.1)
-      '@nestjs/passport': 11.0.5(@nestjs/common@11.0.1)(passport@0.7.0)
-      passport: 0.7.0
-      passport-jwt: 4.0.1
-      reflect-metadata: 0.2.2
-      rxjs: 7.8.1
-      zod: 4.5.4
     dev: false
