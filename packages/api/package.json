@@ -21,7 +21,7 @@
     "typecheck": "tsc -p tsconfig.build.json --noEmit"
   },
   "dependencies": {
-    "@aether-zone/organon": "file:../../../organon/libs/organon",
+    "@aether-zone/organon": "^0.5.0",
     "@aws-sdk/client-s3": "^3.1126.0",
     "@aws-sdk/s3-request-presigner": "^3.1126.0",
     "@golevelup/nestjs-rabbitmq": "^9.0.2",
