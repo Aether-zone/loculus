@@ -1,0 +1,70 @@
+# See https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files for more about ignoring files.
+
+# compiled output
+dist
+tmp
+out-tsc
+
+# dependencies
+node_modules
+
+# IDEs and editors
+/.idea
+.project
+.classpath
+.c9/
+*.launch
+.settings/
+*.sublime-workspace
+
+# IDE - VSCode
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+# misc
+/.sass-cache
+/connect.lock
+/coverage
+/libpeerconnection.log
+npm-debug.log
+yarn-error.log
+testem.log
+/typings
+
+# Local environment. `*.example` files are committed as documentation; the
+# real ones hold machine-specific ports and, in api/.env, a signing key.
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# Local SQLite databases. TypeORM writes one to the working directory, which is
+# the workspace root under `nx serve`.
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+
+# System Files
+.DS_Store
+Thumbs.db
+
+.nx/cache
+.nx/workspace-data
+.nx/migrate-runs
+.claude/worktrees
+.claude/settings.local.json
+
+# Next.js
+.next
+out
+
+# TypeScript's incremental build cache; `tsc --noEmit` writes one beside the
+# tsconfig that asked for it.
+*.tsbuildinfo
+
+test-output
+# npm auth (contains a GitHub PAT for the @aether-zone registry)
+.npmrc

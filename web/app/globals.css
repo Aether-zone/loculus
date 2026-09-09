@@ -1,0 +1,27 @@
+/* ---------------------------------------------------------------------------
+   The console's one stylesheet.
+
+   Everything visual comes from kosmos: `tokens.css` declares the design tokens
+   under `:root` and `.dark`, and `theme.css` is the `@theme inline` block that
+   maps them onto Tailwind's namespaces, so `bg-primary` resolves to a kosmos
+   token rather than a Tailwind default. loculus has no palette of its own to
+   put on top — unlike akouo, which skins kosmos through `@akouo/theme`. If it
+   ever grows one, a `@theme` block after these imports is where it goes: a
+   later declaration wins.
+--------------------------------------------------------------------------- */
+@import 'tailwindcss';
+@import '@aether-zone/kosmos/tokens.css';
+@import '@aether-zone/kosmos/theme.css';
+
+/* Tailwind generates only the classes it can see, and it will not scan
+   node_modules on its own. kosmos ships built JS carrying its class names, so
+   naming it here has this app's Tailwind generate kosmos's utilities against
+   the tokens above — one stylesheet, one palette, rather than importing
+   kosmos's prebuilt `styles.css` alongside our own. */
+@source './**/*.{ts,tsx}';
+@source '../components/**/*.{ts,tsx}';
+@source '../node_modules/@aether-zone/kosmos/dist/*.mjs';
+
+/* kosmos toggles dark mode with a class on an ancestor, not the OS preference,
+   because the theme control has to be able to override the OS. */
+@custom-variant dark (&:where(.dark, .dark *));
