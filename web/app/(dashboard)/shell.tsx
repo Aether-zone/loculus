@@ -179,16 +179,6 @@ export function DashboardShell({
                   </p>
                 </div>
               </div>
-
-              {/* Not decoration: objects belong to the OAuth client, so this
-                  names exactly which set of them the console can see. It stays
-                  in view rather than hiding in a menu because it is the one
-                  thing that explains why akouo's objects are not here. */}
-              <p className="px-1 text-xs text-muted-foreground">
-                Objects filed under{' '}
-                <span className="font-mono text-foreground">{clientId}</span>
-              </p>
-
               <form action={signOutAction}>
                 <Button type="submit" variant="secondary" className="w-full">
                   Sign out
