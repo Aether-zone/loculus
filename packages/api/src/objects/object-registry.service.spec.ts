@@ -1,7 +1,7 @@
 import { NotFoundException } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 
-import { ObjectRegistry } from './object-registry.service';
+import { ObjectRegistry, READ_ANY_OBJECT } from './object-registry.service';
 import { StoredObject } from './stored-object.entity';
 
 /**
@@ -24,6 +24,12 @@ describe('ObjectRegistry', () => {
     size: 10,
     uploadExpiresAt: new Date(Date.now() + 900_000),
     ...over,
+  });
+
+  /** A caller with no scopes: the ordinary case, owning or not owning a row. */
+  const caller = (clientId: string, scopes: string[] = []) => ({
+    clientId,
+    scopes,
   });
 
   beforeEach(async () => {
@@ -50,7 +56,7 @@ describe('ObjectRegistry', () => {
     await registry.record(upload());
 
     await expect(
-      registry.require('abc-notes.txt', 'akouo'),
+      registry.require('abc-notes.txt', caller('akouo')),
     ).resolves.toMatchObject({
       objectKey: 'abc-notes.txt',
     });
@@ -62,7 +68,7 @@ describe('ObjectRegistry', () => {
     // This is the hole the table exists to close: before it, any valid token
     // could read or delete any object whose key it had learned.
     await expect(
-      registry.require('abc-notes.txt', 'demo-client'),
+      registry.require('abc-notes.txt', caller('demo-client')),
     ).rejects.toThrow(NotFoundException);
   });
 
@@ -82,10 +88,10 @@ describe('ObjectRegistry', () => {
     const emptyRegistry = new ObjectRegistry(empty.getRepository(StoredObject));
 
     const notYours = await registry
-      .require('contested.txt', 'demo-client')
+      .require('contested.txt', caller('demo-client'))
       .catch((error: Error) => error.message);
     const notThere = await emptyRegistry
-      .require('contested.txt', 'demo-client')
+      .require('contested.txt', caller('demo-client'))
       .catch((error: Error) => error.message);
 
     expect(notYours).toBe(notThere);
@@ -133,13 +139,66 @@ describe('ObjectRegistry', () => {
     await expect(registry.expiredPending()).resolves.toEqual([]);
   });
 
+  /*
+   * The reader scope, and the line it deliberately does not cross: it opens
+   * reading an object somebody else stored, and nothing else about it.
+   */
+  describe('objects:read:any', () => {
+    it('lets a holder read another client’s object', async () => {
+      await registry.record(upload());
+
+      await expect(
+        registry.requireReadable(
+          'abc-notes.txt',
+          caller('mneme', [READ_ANY_OBJECT]),
+        ),
+      ).resolves.toMatchObject({ objectKey: 'abc-notes.txt' });
+    });
+
+    it('still refuses a reader without it', async () => {
+      await registry.record(upload());
+
+      await expect(
+        registry.requireReadable('abc-notes.txt', caller('mneme')),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('lets an owner read without holding it', async () => {
+      // The ordinary case must not come to depend on a scope nobody grants it.
+      await registry.record(upload());
+
+      await expect(
+        registry.requireReadable('abc-notes.txt', caller('akouo')),
+      ).resolves.toMatchObject({ objectKey: 'abc-notes.txt' });
+    });
+
+    it('does not let a holder delete, or claim, what it may read', async () => {
+      /*
+       * `require` is what every mutating path asks, and the scope must not
+       * reach it: a reader is a far smaller thing to grant than an owner.
+       */
+      await registry.record(upload());
+
+      await expect(
+        registry.require('abc-notes.txt', caller('mneme', [READ_ANY_OBJECT])),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('says the same thing about a key that does not exist', async () => {
+      // A refusal that read differently from absence would confirm a key.
+      await expect(
+        registry.requireReadable('never-was.txt', caller('mneme')),
+      ).rejects.toThrow(NotFoundException);
+    });
+  });
+
   it('forgets an object', async () => {
     const row = await registry.record(upload());
 
     await registry.forget(row);
 
-    await expect(registry.require('abc-notes.txt', 'akouo')).rejects.toThrow(
-      NotFoundException,
-    );
+    await expect(
+      registry.require('abc-notes.txt', caller('akouo')),
+    ).rejects.toThrow(NotFoundException);
   });
 });

@@ -6,7 +6,6 @@ import {
   S3Client,
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
-import { EventPublisher } from '@aether-zone/organon';
 import {
   ForbiddenException,
   Inject,
@@ -15,9 +14,12 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 
-import { ObjectRegistry } from '../objects/object-registry.service';
+import { ObjectAnnouncer } from '../objects/object.announcer';
+import {
+  ObjectRegistry,
+  type ObjectCaller,
+} from '../objects/object-registry.service';
 import { isObjectKey, objectKeyFor } from './object-key';
-import { OBJECT_DELETED, type ObjectDeletedEvent } from './presign.events';
 import {
   PRESIGN_CONFIG,
   S3_CLIENT,
@@ -29,10 +31,13 @@ import type {
   PresignedUploadDTO,
 } from './presign.dto';
 
-/** Who is asking, taken from the verified token. */
-export interface ObjectOwner {
-  /** The token's `client_id` — the boundary an object belongs to. */
-  clientId: string;
+/**
+ * Who is asking, taken from the verified token.
+ *
+ * Extends {@link ObjectCaller} rather than restating it, so that what the
+ * registry authorizes on and what a handler is given cannot fall out of step.
+ */
+export interface ObjectOwner extends ObjectCaller {
   /** The token's `sub`. Provenance only. */
   subject: string | null;
 }
@@ -52,7 +57,7 @@ export class PresignService {
   constructor(
     @Inject(S3_CLIENT) private readonly client: S3Client,
     @Inject(PRESIGN_CONFIG) private readonly config: PresignConfig,
-    private readonly events: EventPublisher,
+    private readonly announcer: ObjectAnnouncer,
     private readonly registry: ObjectRegistry,
   ) {}
 
@@ -142,13 +147,27 @@ export class PresignService {
     objectKey: string,
     owner: ObjectOwner,
   ): Promise<PresignedDownloadDTO> {
-    const object = await this.registry.require(objectKey, owner.clientId);
+    /*
+     * Readable, not owned. This is the one route a service holding
+     * `objects:read:any` reaches an object it did not store — which is what
+     * lets mneme index a document aether's browser uploaded. Deletion below
+     * still asks for ownership.
+     */
+    const object = await this.registry.requireReadable(objectKey, owner);
 
     await this.requireObject(objectKey);
 
-    // First sighting of the bytes: the row catches up.
+    /*
+     * First sighting of the bytes: the row catches up, and — this is the part
+     * that used to be missing — the workspace is told.
+     *
+     * The store just served a `HeadObject` for this key, which is the same
+     * evidence the sweep acts on. Settling the row and announcing nothing left
+     * an object `UPLOADED` that nothing downstream had ever heard of, reachable
+     * only if something happened to ask again.
+     */
     if (object.state === 'PENDING') {
-      await this.registry.markUploaded(object);
+      await this.announcer.uploaded(await this.registry.markUploaded(object));
     }
 
     const downloadUrl = await getSignedUrl(
@@ -172,7 +191,7 @@ export class PresignService {
    * wants the same "it is gone" both times.
    */
   async remove(objectKey: string, owner: ObjectOwner): Promise<void> {
-    const object = await this.registry.require(objectKey, owner.clientId);
+    const object = await this.registry.require(objectKey, owner);
 
     await this.client.send(
       new DeleteObjectCommand({
@@ -184,29 +203,15 @@ export class PresignService {
     // The row after the bytes: a row outliving its object is a sweep's
     // problem, where an object outliving its row is nobody's.
     await this.registry.forget(object);
-    await this.announceDeleted(objectKey);
-  }
 
-  /**
-   * Tells anyone holding this key that it is gone.
-   *
-   * After the delete, and never in place of it: the object is already removed
-   * by the time this runs, and a caller must not be told the deletion failed
-   * because a broker was unreachable. What is lost is the notification, so it
-   * is logged rather than swallowed — and because the delete is idempotent,
-   * repeating the request is a safe way to try again.
-   */
-  private async announceDeleted(objectKey: string): Promise<void> {
-    const event: ObjectDeletedEvent = { objectKey };
-
-    try {
-      await this.events.publish(OBJECT_DELETED, event);
-    } catch (cause) {
-      this.logger.error(
-        `"${objectKey}" was removed but "${OBJECT_DELETED}" could not be published`,
-        cause,
-      );
-    }
+    /*
+     * After the delete, and never in place of it: the object is already gone by
+     * the time this runs, and a caller must not be told the deletion failed
+     * because a broker was unreachable. The announcer swallows and logs for
+     * that reason — and because the delete is idempotent, repeating the request
+     * is a safe way to try again.
+     */
+    await this.announcer.removed(object);
   }
 
   private async requireObject(objectKey: string): Promise<void> {

@@ -12,6 +12,7 @@ import {
   defaultDatabaseConfig,
   type DatabaseConfig,
 } from '../objects/database.providers';
+import { ObjectAnnouncer } from '../objects/object.announcer';
 import { ObjectRegistry } from '../objects/object-registry.service';
 import { CreatePresignedUploadPipe } from './create-presigned-upload.pipe';
 import { ObjectStoreHealth } from './object-store.health';
@@ -78,6 +79,7 @@ export class PresignModule {
         ...createS3Providers(),
         ...createDatabaseProviders(),
         ObjectRegistry,
+        ObjectAnnouncer,
         ObjectSweeper,
         PresignService,
         ObjectStoreHealth,
@@ -86,6 +88,8 @@ export class PresignModule {
       exports: [
         PresignService,
         ObjectRegistry,
+        // Reached by `ObjectListener`, which the root module provides.
+        ObjectAnnouncer,
         PRESIGN_CONFIG,
         S3_CLIENT,
         ObjectStoreHealth,

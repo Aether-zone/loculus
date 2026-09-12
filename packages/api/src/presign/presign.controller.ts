@@ -33,6 +33,12 @@ import { PresignService } from './presign.service';
 const ownerOf = (principal: Principal): ObjectOwner => ({
   clientId: principal.clientId,
   subject: principal.id,
+  /*
+   * Carried so the registry can honour `objects:read:any` on the download
+   * route. Straight off the verified token — a caller naming its own scopes
+   * would be naming its own permissions.
+   */
+  scopes: principal.scopes,
 });
 
 /**

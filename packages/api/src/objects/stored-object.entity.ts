@@ -12,7 +12,9 @@ import {
  *
  * `PENDING` means a URL was handed out and the bytes have not been seen since.
  * It is not "uploading": loculus cannot watch an upload — the client PUTs to
- * the store directly — so the only way past this state is to go and look.
+ * the store directly — so the row only moves once something reports back. The
+ * bucket's notification does that within seconds of the write; the sweep goes
+ * and looks for the ones it never came for.
  */
 export type ObjectState = 'PENDING' | 'UPLOADED';
 
