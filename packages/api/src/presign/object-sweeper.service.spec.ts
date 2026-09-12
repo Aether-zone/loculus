@@ -1,3 +1,4 @@
+import { ObjectAnnouncer } from '../objects/object.announcer';
 import { ObjectSweeper } from './object-sweeper.service';
 import { defaultPresignConfig } from './presign.config';
 import { OBJECT_UPLOADED } from './presign.events';
@@ -8,6 +9,8 @@ const pending = (objectKey: string) => ({
   name: `${objectKey}.txt`,
   contentType: 'text/plain',
   size: 10,
+  organizationId: 'org-1',
+  createdBy: 'user-1',
   state: 'PENDING' as const,
 });
 
@@ -20,16 +23,23 @@ const notFound = () =>
 function harness(expired: ReturnType<typeof pending>[], send: jest.Mock) {
   const registry = {
     expiredPending: jest.fn().mockResolvedValue(expired),
-    markUploaded: jest.fn().mockResolvedValue(undefined),
+    // Hands back the settled row, which is what gets announced.
+    markUploaded: jest.fn((object: object) => Promise.resolve(object)),
     forget: jest.fn().mockResolvedValue(undefined),
   };
   const publish = jest.fn().mockResolvedValue(undefined);
 
+  /*
+   * The real announcer over a stubbed publisher, rather than a stubbed
+   * announcer. What the sweep owes the workspace is the *events*, and a mock
+   * of the thing that sends them would assert only that the sweep called a
+   * method.
+   */
   const sweeper = new ObjectSweeper(
     { send } as never,
     defaultPresignConfig,
     registry as never,
-    { publish } as never,
+    new ObjectAnnouncer({ publish } as never),
   );
 
   return { sweeper, registry, publish };

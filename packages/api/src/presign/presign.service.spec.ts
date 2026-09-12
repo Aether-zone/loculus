@@ -5,6 +5,7 @@ import {
   defaultPresignConfig,
   type PresignConfig,
 } from './presign.config';
+import { ObjectAnnouncer } from '../objects/object.announcer';
 import { PresignService } from './presign.service';
 
 const config: PresignConfig = {
@@ -15,7 +16,8 @@ const config: PresignConfig = {
   downloadExpiresIn: 300,
 };
 
-const owner = { clientId: 'akouo', subject: 'user-1' };
+/** The ordinary caller: owns the row, holds no scopes. */
+const owner = { clientId: 'akouo', subject: 'user-1', scopes: [] };
 
 /** The row the registry hands back for a key this owner may have. */
 const stored = {
@@ -42,17 +44,25 @@ function harness(
 
   const objects = {
     record: jest.fn().mockResolvedValue(stored),
+    // Two checks, because the service asks a different one per route: reading
+    // honours `objects:read:any`, and everything that mutates does not.
     require: jest.fn().mockResolvedValue({ ...stored }),
-    markUploaded: jest.fn().mockResolvedValue(undefined),
+    requireReadable: jest.fn().mockResolvedValue({ ...stored }),
+    // Hands back the settled row, which is what gets announced.
+    markUploaded: jest.fn((object: object) => Promise.resolve(object)),
     forget: jest.fn().mockResolvedValue(undefined),
     ...registry,
   };
 
   return {
+    /*
+     * The real announcer over a stubbed publisher, so these assert the events
+     * that actually reach the exchange rather than that a method was called.
+     */
     service: new PresignService(
       client,
       config,
-      { publish } as never,
+      new ObjectAnnouncer({ publish } as never),
       objects as never,
     ),
     send,
@@ -241,6 +251,58 @@ describe('createDownload', () => {
     ).rejects.toThrow(NotFoundException);
     expect(send).not.toHaveBeenCalled();
   });
+
+  /*
+   * Which of the registry's two checks this route asks is the whole of the
+   * reader scope at this seam: `requireReadable` honours `objects:read:any`,
+   * `require` does not. Asserted here rather than left to the registry's own
+   * tests, because picking the wrong one would pass every test over there.
+   */
+  /*
+   * The store just served a `HeadObject` for this key, which is the same
+   * evidence the sweep acts on. This used to settle the row and tell nobody,
+   * leaving an object `UPLOADED` that nothing downstream had ever heard of.
+   */
+  it('announces an object it finds had already arrived', async () => {
+    const { service, publish } = harness(jest.fn(), jest.fn(), {
+      requireReadable: jest
+        .fn()
+        .mockResolvedValue({ ...stored, state: 'PENDING' }),
+    });
+
+    await service.createDownload('abc-notes.txt', owner);
+
+    expect(publish).toHaveBeenCalledWith(
+      'object.uploaded',
+      expect.objectContaining({ objectKey: 'abc-notes.txt' }),
+    );
+    expect(publish).toHaveBeenCalledWith(
+      'object.resource.created',
+      expect.objectContaining({ subject: 'urn:aether:object:abc-notes.txt' }),
+    );
+  });
+
+  it('announces nothing for an object already known to be there', async () => {
+    // The row is `UPLOADED` in the default fixture: nothing changed, so there
+    // is nothing to say, and a download must not look like an arrival.
+    const { service, publish } = harness();
+
+    await service.createDownload('abc-notes.txt', owner);
+
+    expect(publish).not.toHaveBeenCalled();
+  });
+
+  it('asks whether the caller may read, not whether it owns', async () => {
+    const { service, objects } = harness();
+
+    await service.createDownload('abc-notes.txt', owner);
+
+    expect(objects.requireReadable).toHaveBeenCalledWith(
+      'abc-notes.txt',
+      owner,
+    );
+    expect(objects.require).not.toHaveBeenCalled();
+  });
 });
 
 describe('remove', () => {
@@ -258,10 +320,31 @@ describe('remove', () => {
 
     await service.remove('abc-notes.txt', owner);
 
-    expect(order).toEqual(['delete', 'publish']);
+    // Two announcements now — the trigger and the resource deletion — and both
+    // after the bytes are gone. A row outliving its object is a sweep's
+    // problem; an announcement outliving a failed delete is a lie.
+    expect(order).toEqual(['delete', 'publish', 'publish']);
     expect(publish).toHaveBeenCalledWith('object.deleted', {
       objectKey: 'abc-notes.txt',
     });
+  });
+
+  /*
+   * The graph's half of a deletion. arachni follows `PART_OF` when it removes a
+   * node, so this is also what takes mneme's chunks of the file out with it.
+   */
+  it('announces the resource deletion by the same IRI it was created under', async () => {
+    const { service, publish } = harness();
+
+    await service.remove('abc-notes.txt', owner);
+
+    expect(publish).toHaveBeenCalledWith(
+      'object.resource.deleted',
+      expect.objectContaining({
+        type: 'aether:ResourceDeleted',
+        subject: 'urn:aether:object:abc-notes.txt',
+      }),
+    );
   });
 
   it('still deletes when the broker refuses the announcement', async () => {
@@ -317,13 +400,31 @@ describe('remove', () => {
     expect(send).not.toHaveBeenCalled();
   });
 
+  /*
+   * Deletion asks for ownership, so `objects:read:any` cannot reach it. A
+   * reader is a far smaller thing to grant than an owner, and the two were one
+   * check before the scope existed.
+   */
+  it('asks whether the caller owns the object, not whether it may read', async () => {
+    const { service, objects } = harness();
+
+    await service.remove('abc-notes.txt', owner);
+
+    expect(objects.require).toHaveBeenCalledWith('abc-notes.txt', owner);
+    expect(objects.requireReadable).not.toHaveBeenCalled();
+  });
+
   it('refuses a key belonging to another client', async () => {
     const { service, send } = harness(jest.fn(), jest.fn(), {
       require: jest.fn().mockRejectedValue(new NotFoundException()),
     });
 
     await expect(
-      service.remove('someone-elses.txt', { clientId: 'other', subject: null }),
+      service.remove('someone-elses.txt', {
+        clientId: 'other',
+        subject: null,
+        scopes: [],
+      }),
     ).rejects.toThrow(NotFoundException);
     expect(send).not.toHaveBeenCalled();
   });
